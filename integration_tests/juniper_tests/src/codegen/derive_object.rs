@@ -72,6 +72,48 @@ struct SkippedFieldObj {
     skipped: i32,
 }
 
+#[derive(GraphQLObject, Debug, PartialEq)]
+#[graphql(Context = Context)]
+pub struct HandlerFieldObj {
+    regular_field: bool,
+    #[graphql(Handler = handler_field_obj::skipped, noasync)]
+    skipped: i32,
+    #[graphql(Handler = handler_field_obj::skipped_result, noasync)]
+    skipped_result: i32,
+    #[graphql(Handler = handler_field_obj::skipped_async)]
+    skipped_async: i32,
+    #[graphql(Handler = handler_field_obj::skipped_async_result)]
+    skipped_async_result: i32,
+}
+
+mod handler_field_obj {
+    pub fn skipped(obj: &super::HandlerFieldObj, ctx: &()) -> i32 {
+        0
+    }
+
+    pub fn skipped_result(obj: &super::HandlerFieldObj, ctx: &()) -> juniper::FieldResult<i32> {
+        Ok(0)
+    }
+
+    pub async fn skipped_async(obj: &super::HandlerFieldObj, ctx: &()) -> i32 {
+        0
+    }
+
+    pub async fn skipped_async_result(
+        obj: &super::HandlerFieldObj,
+        ctx: &(),
+    ) -> juniper::FieldResult<i32> {
+        Ok(0)
+    }
+
+    pub async fn differ_context_skipped_async_result(
+        obj: &super::HandlerFieldObj,
+        ctx: &super::Context,
+    ) -> juniper::FieldResult<i32> {
+        Ok(0)
+    }
+}
+
 struct Context;
 impl juniper::Context for Context {}
 

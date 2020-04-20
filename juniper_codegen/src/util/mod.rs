@@ -461,6 +461,8 @@ enum FieldAttribute {
     Deprecation(DeprecationAttr),
     Skip(syn::Ident),
     Arguments(HashMap<String, FieldAttributeArgument>),
+    Handler(syn::Path),
+    NoAsync,
 }
 
 impl parse::Parse for FieldAttribute {
@@ -482,6 +484,13 @@ impl parse::Parse for FieldAttribute {
                 } else {
                     Ok(FieldAttribute::Name(lit))
                 }
+            }
+            "noasync" => {
+                Ok(FieldAttribute::NoAsync)
+            }
+            "handler" | "Handler" => {
+                input.parse::<syn::Token![=]>()?;
+                Ok(FieldAttribute::Handler(input.parse()?))
             }
             "description" => {
                 input.parse::<Token![=]>()?;
@@ -523,6 +532,8 @@ pub struct FieldAttributes {
     pub skip: bool,
     /// Only relevant for object macro.
     pub arguments: HashMap<String, FieldAttributeArgument>,
+    pub handler: Option<syn::Path>,
+    pub no_async: bool,
 }
 
 impl parse::Parse for FieldAttributes {
@@ -535,6 +546,8 @@ impl parse::Parse for FieldAttributes {
             deprecation: None,
             skip: false,
             arguments: Default::default(),
+            no_async: false,
+            handler: None,
         };
 
         for item in items {
@@ -553,6 +566,12 @@ impl parse::Parse for FieldAttributes {
                 }
                 FieldAttribute::Arguments(args) => {
                     output.arguments = args;
+                }
+                FieldAttribute::Handler(args) => {
+                    output.handler = Some(args);
+                }
+                FieldAttribute::NoAsync => {
+                    output.no_async = true;
                 }
             }
         }

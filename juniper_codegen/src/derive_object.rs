@@ -30,6 +30,8 @@ pub fn build_derive_object(ast: syn::DeriveInput, is_internal: bool) -> TokenStr
     let ident = &ast.ident;
     let name = attrs.name.unwrap_or_else(|| ident.to_string());
 
+    let mut generic_scalar = true;
+
     let fields = struct_fields.into_iter().filter_map(|field| {
         let field_attrs = match util::FieldAttributes::from_attrs(
             field.attrs,
@@ -42,25 +44,45 @@ pub fn build_derive_object(ast: syn::DeriveInput, is_internal: bool) -> TokenStr
         if field_attrs.skip {
             None
         } else {
+            let _type = field.ty;
             let field_name = field.ident.unwrap();
             let name = field_attrs
                 .name
                 .clone()
                 .unwrap_or_else(|| util::to_camel_case(&field_name.to_string()));
 
-            let resolver_code = quote!(
-                &self . #field_name
-            );
+            if field_attrs.handler.is_none() && field_attrs.no_async {
+                panic!("TODO");
+            }
+
+            let is_async = if field_attrs.handler.is_some() {
+                generic_scalar = false;
+                !field_attrs.no_async
+            } else {
+                false
+            };
+
+            let resolver_code = match field_attrs.handler {
+                Some(handler) if field_attrs.no_async => quote!({
+                    #handler(&self, executor.context())
+                }),
+                Some(handler) => quote!({
+                    #handler(&self, executor.context()).await
+                }),
+                None => quote!(
+                    &self . #field_name
+                ),
+            };
 
             Some(util::GraphQLTypeDefinitionField {
                 name,
-                _type: field.ty,
+                _type,
                 args: Vec::new(),
                 description: field_attrs.description,
                 deprecation: field_attrs.deprecation,
                 resolver_code,
                 is_type_inferred: true,
-                is_async: false,
+                is_async,
             })
         }
     });
@@ -75,7 +97,7 @@ pub fn build_derive_object(ast: syn::DeriveInput, is_internal: bool) -> TokenStr
         generics: ast.generics,
         interfaces: None,
         include_type_generics: true,
-        generic_scalar: true,
+        generic_scalar,
         no_async: attrs.no_async,
     };
 
